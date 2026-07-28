@@ -1,0 +1,81 @@
+{
+    "migration_id": "mig-publisher-20260726",
+    "bot_name": "publisher_bot",
+    "source": {
+        "host": "45.33.22.11",
+        "port": 22,
+        "username": "root",
+        "password": "your_source_password"
+    },
+    "destination": {
+        "host": "198.51.100.42",
+        "port": 22,
+        "username": "root",
+        "password": "your_dest_password"
+    },
+    "project_directory": "/opt/publisher_bot",
+    "bot_service_name": "publisher-bot",
+    "log_path": "/var/log/publisher-bot.log",
+    "steps": [
+        {
+            "name": "create_project_dir",
+            "command": "mkdir -p /opt/publisher_bot",
+            "use_sudo": true,
+            "timeout": 30,
+            "critical": true
+        },
+        {
+            "name": "upload_project",
+            "command": "rsync -av --exclude='.venv' --exclude='__pycache__' --exclude='*.pyc' /path/to/your/project/ /opt/publisher_bot/",
+            "use_sudo": false,
+            "timeout": 300,
+            "critical": true
+        },
+        {
+            "name": "create_venv",
+            "command": "cd /opt/publisher_bot && python3 -m venv .venv",
+            "use_sudo": false,
+            "timeout": 60,
+            "critical": true
+        },
+        {
+            "name": "install_dependencies",
+            "command": "cd /opt/publisher_bot && .venv/bin/pip install -r requirements.txt",
+            "use_sudo": false,
+            "timeout": 300,
+            "critical": true
+        },
+        {
+            "name": "copy_env",
+            "command": "cd /opt/publisher_bot && cat > .env << 'EOF'\nBOT_TOKEN=your_bot_token\nADMIN_ID=123456789\nCHANNEL_ID=-100123456789\nSIGNATURE=📝 Powered by @YourBot\nEOF",
+            "use_sudo": false,
+            "timeout": 30,
+            "critical": true
+        },
+        {
+            "name": "create_service",
+            "command": "cat > /etc/systemd/system/publisher-bot.service << 'EOF'\n[Unit]\nDescription=Publisher Bot\nAfter=network.target\n\n[Service]\nType=simple\nUser=root\nWorkingDirectory=/opt/publisher_bot\nExecStart=/opt/publisher_bot/.venv/bin/python3 /opt/publisher_bot/main.py\nRestart=always\nRestartSec=5\n\n[Install]\nWantedBy=multi-user.target\nEOF\nsystemctl daemon-reload",
+            "use_sudo": true,
+            "timeout": 30,
+            "critical": true
+        },
+        {
+            "name": "start_bot",
+            "command": "systemctl start publisher-bot",
+            "use_sudo": true,
+            "timeout": 60,
+            "critical": true
+        },
+        {
+            "name": "health_check",
+            "command": "sleep 3 && systemctl is-active publisher-bot",
+            "use_sudo": true,
+            "timeout": 30,
+            "critical": true
+        }
+    ],
+    "metadata": {
+        "bot_type": "telegram_publisher",
+        "version": "2.0.0"
+    }
+}
